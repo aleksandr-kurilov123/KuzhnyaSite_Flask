@@ -27,9 +27,9 @@ def create_app():
         app.config.from_object('config.ProductionConfig')
 
     # Ensure SQLALCHEMY_DATABASE_URI is set
-    postgres_url = os.getenv("POSTGRES_URL")
+    postgres_url = os.getenv("TEST_POSTGRES_URL")
     if not postgres_url:
-        raise ValueError("POSTGRES_URL is not set")
+        raise ValueError("TEST_POSTGRES_URL is not set")
 
     # Parse and clean the connection string
     raw_url = postgres_url.replace("postgres://", "postgresql+psycopg2://")
