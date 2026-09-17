@@ -1,15 +1,14 @@
 from flask import render_template, redirect, url_for, request, flash, session, jsonify, Blueprint, current_app, send_from_directory
-from flask_login import login_user, login_required, logout_user, current_user
+from flask_login import login_user, login_required, logout_user, current_user, admin_required
 from . import db
 from .forms import LoginForm, RegisterForm, ConnectForm, TournamentForm, GameForm, EditUserForm, TeamForm, EditTeamForm, JoinTeamForm, ApplyToTournamentForm
 from .models import Users, RiotAccountInfoUser, Tournaments, Games, Teams, Matches
-from .services import register_user, connect_riot_account, add_tournament, add_game, edit_user, add_team, edit_team, generate_team_link, join_team_by_token, refresh_riot_account_info, start_tournament, submit_match_result
-from .utils import get_user_by_email_or_username, admin_required
+from .services import *
 import random
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 from traits import generate_team_api, possible_emblems, generate_prioritize_full_traits_api, traits
-import os
+
 
 routes = Blueprint('routes', __name__)
 
@@ -125,15 +124,14 @@ def apply_to_tournament(tournament_id):
 
 @routes.route("/tournaments/<int:tournament_id>/start", methods=["POST"])
 @admin_required
-def start_tournament(tournament_id):
-    """Placeholder route to start a tournament. Only admins can access this.
-    Actual start logic will be implemented later.
+def start_tournament_route(tournament_id):
     """
+    """
+
     tournament = Tournaments.query.get(tournament_id)
     if not tournament:
         flash("Tournament not found.")
         return redirect(url_for("routes.get_tournaments"))
-
     result, status = start_tournament(tournament_id)
     if status != 200:
         flash(result.get('error', 'Unable to start tournament'))
