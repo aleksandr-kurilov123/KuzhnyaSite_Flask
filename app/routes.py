@@ -1,9 +1,10 @@
 from flask import render_template, redirect, url_for, request, flash, session, jsonify, Blueprint, current_app, send_from_directory
-from flask_login import login_user, login_required, logout_user, current_user, admin_required
+from flask_login import login_user, login_required, logout_user, current_user
 from . import db
 from .forms import LoginForm, RegisterForm, ConnectForm, TournamentForm, GameForm, EditUserForm, TeamForm, EditTeamForm, JoinTeamForm, ApplyToTournamentForm
 from .models import Users, RiotAccountInfoUser, Tournaments, Games, Teams, Matches
 from .services import *
+from .utils import admin_required
 import random
 from werkzeug.security import generate_password_hash
 from datetime import datetime
