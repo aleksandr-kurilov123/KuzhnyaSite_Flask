@@ -13,8 +13,16 @@
         <form class="w-100" method="POST" action="{{ url_for('routes.admin') }}">
             {{ tournament_form.hidden_tag() }}
             <div class="input-group1">
-                {{ tournament_form.tournament_name.label }} {{ tournament_form.tournament_name
-                (placeholder="Required")}}
+                {{ tournament_form.tournament_name.label }} {{ tournament_form.tournament_name (placeholder="Required")}}
+            </div>
+            <div class="input-group1">
+                {{ tournament_form.format.label }} {{ tournament_form.format }}
+            </div>
+            <div class="input-group1">
+                {{ tournament_form.max_teams.label }} {{ tournament_form.max_teams }}
+            </div>
+            <div class="input-group1">
+                {{ tournament_form.rounds.label }} {{ tournament_form.rounds }}
             </div>
             {{ tournament_form.submit }}
         </form>

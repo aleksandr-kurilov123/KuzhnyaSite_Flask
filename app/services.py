@@ -1,6 +1,6 @@
 from flask import flash, redirect, url_for
 from flask_login import current_user
-from .models import Users, RiotAccountInfoUser, db, Tournaments, Games, Teams
+from .models import Users, RiotAccountInfoUser, db, Tournaments, Games, Teams, Matches
 from . import utils
 import os
 import re
@@ -80,10 +80,114 @@ def connect_riot_account(form):
     return redirect(url_for("routes.profile"))
 
 def add_tournament(form):
-    tournament = Tournaments(tournament_name=form.tournament_name.data)
+    tournament = Tournaments(
+        tournament_name=form.tournament_name.data,
+        format=form.format.data if hasattr(form, 'format') else 'swiss',
+        max_teams=form.max_teams.data if hasattr(form, 'max_teams') else None,
+        rounds=form.rounds.data if hasattr(form, 'rounds') else None,
+        status='registration'
+    )
     db.session.add(tournament)
     db.session.commit()
     return tournament
+
+
+def generate_swiss_pairings(tournament, round_number=1):
+    # Very simple pairing: sort by current wins, pair adjacent. For round 1 shuffle.
+    import random
+    teams = list(tournament.teams)
+    if round_number == 1:
+        random.shuffle(teams)
+    else:
+        # sort by wins desc
+        standings = {s['team'].id: s['wins'] for s in tournament.standings()}
+        teams.sort(key=lambda t: (-standings.get(t.id, 0), t.id))
+
+    pairs = []
+    i = 0
+    while i < len(teams):
+        a = teams[i]
+        b = teams[i+1] if i+1 < len(teams) else None
+        pairs.append((a.id, b.id if b else None))
+        i += 2
+    return pairs
+
+
+def start_tournament(tournament_id):
+    tournament = Tournaments.query.get(tournament_id)
+    if not tournament:
+        return {'error': 'Tournament not found'}, 404
+    if len(tournament.teams) < 2:
+        return {'error': 'Not enough teams to start'}, 400
+    tournament.status = 'active'
+    tournament.current_round = 1
+    db.session.add(tournament)
+    pairs = []
+    if tournament.format == 'swiss':
+        pairs = generate_swiss_pairings(tournament, round_number=1)
+    else:
+        # fallback to simple random pairing
+        import random
+        tlist = list(tournament.teams)
+        random.shuffle(tlist)
+        i = 0
+        while i < len(tlist):
+            a = tlist[i]
+            b = tlist[i+1] if i+1 < len(tlist) else None
+            pairs.append((a.id, b.id if b else None))
+            i += 2
+
+    # create matches
+    for a_id, b_id in pairs:
+        match = Matches(tournament_id=tournament.id, round_number=1, team_a_id=a_id, team_b_id=b_id)
+        db.session.add(match)
+
+    db.session.commit()
+    return {'message': 'Tournament started', 'pairs': pairs}, 200
+
+
+def submit_match_result(match_id, score_a, score_b):
+    match = Matches.query.get(match_id)
+    if not match:
+        return {'error': 'Match not found'}, 404
+    match.score_a = score_a
+    match.score_b = score_b
+    if score_a is None or score_b is None:
+        return {'error': 'Scores required'}, 400
+    if score_a > score_b:
+        match.winner_id = match.team_a_id
+    elif score_b > score_a:
+        match.winner_id = match.team_b_id
+    else:
+        match.winner_id = None
+    match.played = True
+    db.session.add(match)
+    db.session.commit()
+
+    # after submitting, check if all matches in the round are played and auto-create next round
+    tournament = Tournaments.query.get(match.tournament_id)
+    current_round = match.round_number
+    round_matches = Matches.query.filter_by(tournament_id=tournament.id, round_number=current_round).all()
+    if all(m.played for m in round_matches):
+        # advance round if needed
+        if tournament.rounds is None or tournament.current_round < tournament.rounds:
+            tournament.current_round += 1
+            db.session.add(tournament)
+            # generate next round pairings
+            if tournament.format == 'swiss':
+                pairs = generate_swiss_pairings(tournament, round_number=tournament.current_round)
+            else:
+                pairs = []
+            for a_id, b_id in pairs:
+                new_match = Matches(tournament_id=tournament.id, round_number=tournament.current_round, team_a_id=a_id, team_b_id=b_id)
+                db.session.add(new_match)
+            db.session.commit()
+        else:
+            tournament.status = 'finished'
+            db.session.add(tournament)
+            db.session.commit()
+
+    return {'message': 'Result recorded'}, 200
 
 def add_game(form):
     game = Games(

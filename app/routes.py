@@ -2,8 +2,8 @@ from flask import render_template, redirect, url_for, request, flash, session, j
 from flask_login import login_user, login_required, logout_user, current_user
 from . import db
 from .forms import LoginForm, RegisterForm, ConnectForm, TournamentForm, GameForm, EditUserForm, TeamForm, EditTeamForm, JoinTeamForm, ApplyToTournamentForm
-from .models import Users, RiotAccountInfoUser, Tournaments, Games, Teams
-from .services import register_user, connect_riot_account, add_tournament, add_game, edit_user, add_team, edit_team, generate_team_link, join_team_by_token, refresh_riot_account_info
+from .models import Users, RiotAccountInfoUser, Tournaments, Games, Teams, Matches
+from .services import register_user, connect_riot_account, add_tournament, add_game, edit_user, add_team, edit_team, generate_team_link, join_team_by_token, refresh_riot_account_info, start_tournament, submit_match_result
 from .utils import get_user_by_email_or_username, admin_required
 import random
 from werkzeug.security import generate_password_hash
@@ -134,9 +134,31 @@ def start_tournament(tournament_id):
         flash("Tournament not found.")
         return redirect(url_for("routes.get_tournaments"))
 
-    # TODO: implement starting tournament logic (scheduling/generation/etc.)
-    flash("Start tournament functionality is not implemented yet.")
+    result, status = start_tournament(tournament_id)
+    if status != 200:
+        flash(result.get('error', 'Unable to start tournament'))
+    else:
+        flash('Tournament started')
     return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
+
+
+@routes.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/result", methods=["POST"])
+@admin_required
+def record_match_result(tournament_id, match_id):
+    # expects form fields 'score_a' and 'score_b'
+    try:
+        score_a = int(request.form.get('score_a'))
+        score_b = int(request.form.get('score_b'))
+    except Exception:
+        flash('Invalid scores')
+        return redirect(url_for('routes.get_tournament_by_id', id=tournament_id))
+
+    result, status = submit_match_result(match_id, score_a, score_b)
+    if status != 200:
+        flash(result.get('error', 'Unable to record result'))
+    else:
+        flash('Result recorded')
+    return redirect(url_for('routes.get_tournament_by_id', id=tournament_id))
 
 @routes.route("/admin", methods=["GET", "POST"])
 @admin_required

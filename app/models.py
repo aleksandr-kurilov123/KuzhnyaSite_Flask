@@ -59,6 +59,14 @@ class Tournaments(db.Model):
     games = db.relationship('Games', backref='tournament', lazy=True, cascade="all, delete-orphan")
     # teams participating in the tournament
     teams = db.relationship('Teams', secondary=tournament_teams, backref=db.backref('tournaments', lazy='dynamic'))
+    # tournament configuration
+    format = db.Column(db.String(20), nullable=False, default='swiss')
+    status = db.Column(db.String(20), nullable=False, default='draft')
+    max_teams = db.Column(db.Integer, nullable=True)
+    rounds = db.Column(db.Integer, nullable=True)
+    current_round = db.Column(db.Integer, nullable=False, default=0)
+    # matches for this tournament
+    matches = db.relationship('Matches', backref='tournament', lazy=True, cascade="all, delete-orphan")
 
     def __init__(self, tournament_name: str):
         self.tournament_name = tournament_name
@@ -70,6 +78,21 @@ class Tournaments(db.Model):
             closest_game = min(future_games, key=lambda game: game.game_time)
             return closest_game
         return None
+
+    def standings(self):
+        # compute simple standings based on match wins
+        teams = list(self.teams)
+        wins = {t.id: 0 for t in teams}
+        losses = {t.id: 0 for t in teams}
+        for m in self.matches:
+            if m.played and m.winner_id:
+                wins[m.winner_id] = wins.get(m.winner_id, 0) + 1
+                if m.team_a_id and m.team_b_id:
+                    loser = m.team_a_id if m.winner_id == m.team_b_id else m.team_b_id if m.winner_id == m.team_a_id else None
+                    if loser:
+                        losses[loser] = losses.get(loser, 0) + 1
+        standings = sorted(teams, key=lambda t: (-wins.get(t.id, 0), t.id))
+        return [{'team': t, 'wins': wins.get(t.id, 0), 'losses': losses.get(t.id, 0)} for t in standings]
 
 
 class Games(db.Model):
@@ -93,3 +116,17 @@ class Teams(db.Model):
     captain_id = db.Column(db.Integer, db.ForeignKey('users.id', name='fk_teams_captain_id'))
     captain = db.relationship('Users', foreign_keys=[captain_id], backref=db.backref('captain_of', uselist=False))
     join_token = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+
+
+class Matches(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id', name='fk_matches_tournament_id'), nullable=False)
+    round_number = db.Column(db.Integer, nullable=False, default=1)
+    team_a_id = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_matches_team_a_id'), nullable=True)
+    team_b_id = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_matches_team_b_id'), nullable=True)
+    team_a = db.relationship('Teams', foreign_keys=[team_a_id])
+    team_b = db.relationship('Teams', foreign_keys=[team_b_id])
+    score_a = db.Column(db.Integer, nullable=True)
+    score_b = db.Column(db.Integer, nullable=True)
+    winner_id = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_matches_winner_id'), nullable=True)
+    played = db.Column(db.Boolean, default=False)

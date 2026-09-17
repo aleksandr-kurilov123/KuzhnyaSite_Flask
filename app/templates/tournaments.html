@@ -11,6 +11,7 @@
                     <a href="/tournaments/{{ tournament.id }}">
                         <div class="tournament-name">{{ tournament.tournament_name }}</div>
                     </a>
+                    <div class="tournament-meta small muted">Format: {{ tournament.format }} | Status: {{ tournament.status }}{% if tournament.current_round %} | Round: {{ tournament.current_round }}{% endif %}</div>
                     <div class="divider-small"></div>
                     <div class="next-game-box">
                         <div>Следующая игра:</div>

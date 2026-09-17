@@ -1,6 +1,7 @@
 {% extends "base.html"%} {% block content %}
 <div class="tournament-overview">
   <h1>{{ tournament.tournament_name }}</h1>
+  <p class="small muted">Format: {{ tournament.format }} | Status: {{ tournament.status }}{% if tournament.current_round %} | Round: {{ tournament.current_round }}{% endif %}</p>
 
   <div class="upcoming-games">
     <h2>Upcoming Games</h2>
@@ -29,5 +30,59 @@
     <button type="submit" class="btn btn-primary">Apply to Tournament</button>
   </form>
   {% endif %}
+
+  <div class="standings mt-4">
+    <h2>Standings</h2>
+    {% set standings = tournament.standings() %}
+    {% if standings %}
+      <table class="table">
+        <thead><tr><th>#</th><th>Team</th><th>Wins</th><th>Losses</th></tr></thead>
+        <tbody>
+          {% for row in standings %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td><a href="/teams/{{ row.team.id }}">{{ row.team.team_name }}</a></td>
+              <td>{{ row.wins }}</td>
+              <td>{{ row.losses }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No standings yet.</p>
+    {% endif %}
+  </div>
+
+  <div class="matches mt-4">
+    <h2>Matches</h2>
+    {% if tournament.matches %}
+      <ul class="list-group">
+        {% for m in tournament.matches|sort(attribute='round_number') %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>Round {{ m.round_number }}:</strong>
+              {% if m.team_a %}{{ m.team_a.team_name }}{% else %}TBD{% endif %}
+              vs
+              {% if m.team_b %}{{ m.team_b.team_name }}{% else %}BYE{% endif %}
+              {% if m.played %} — <span class="text-success">Result: {{ m.score_a }} : {{ m.score_b }}</span>{% endif %}
+            </div>
+            {% if current_user.is_authenticated and current_user.is_admin %}
+              {% if not m.played %}
+                <form method="post" action="{{ url_for('routes.record_match_result', tournament_id=tournament.id, match_id=m.id) }}" class="d-flex gap-2">
+                  <input type="number" name="score_a" placeholder="A" class="form-control" style="width:70px;" required>
+                  <input type="number" name="score_b" placeholder="B" class="form-control" style="width:70px;" required>
+                  <button type="submit" class="btn btn-sm btn-primary">Submit</button>
+                </form>
+              {% else %}
+                <span class="small muted">Played</span>
+              {% endif %}
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No matches scheduled.</p>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

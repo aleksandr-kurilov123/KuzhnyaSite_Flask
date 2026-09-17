@@ -29,6 +29,9 @@ class ConnectForm(FlaskForm):
 
 class TournamentForm(FlaskForm):
     tournament_name = StringField('Tournament Name', validators=[DataRequired()])
+    format = SelectField('Format', choices=[('swiss', 'Swiss'), ('round_robin', 'Round Robin'), ('single_elim', 'Single Elimination')], validators=[DataRequired()], default='swiss')
+    max_teams = IntegerField('Max Teams', validators=[Optional()])
+    rounds = IntegerField('Rounds', validators=[Optional()])
     submit = SubmitField('Add Tournament', render_kw={"class": "sign"})
 
 class GameForm(FlaskForm):
