@@ -1,7 +1,11 @@
 {% extends "base.html"%}
 
 {% block content %}
-
-
-
+<div class="tournament-overview">
+	<h1>Kuzhnya tournaments</h1>
+	<a href="{{ url_for('routes.get_tournaments') }}" class="btn btn-primary">Browse tournaments</a>
+	{% if current_user.is_authenticated and current_user.role in ['moderator', 'admin'] %}
+	<a href="{{ url_for('routes.create_tournament') }}" class="btn btn-secondary">Create tournament</a>
+	{% endif %}
+</div>
 {% endblock %}

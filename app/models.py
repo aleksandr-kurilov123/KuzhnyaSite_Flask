@@ -21,16 +21,18 @@ class Users(UserMixin, db.Model):
     email = db.Column(db.String(30), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    role = db.Column(db.String(20), nullable=False, default='player')
     riot_user = db.relationship("RiotAccountInfoUser", backref="user", uselist=False, cascade="all, delete-orphan")
     games = db.relationship('Games', secondary=user_games, backref=db.backref('participants', lazy='dynamic'))
     team_id = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_users_team_id'))
     team = db.relationship('Teams', foreign_keys=[team_id], backref=db.backref('members', lazy=True))
 
-    def __init__(self, username: str, email: str, password: str, is_admin: bool = False):
+    def __init__(self, username: str, email: str, password: str, is_admin: bool = False, role: str = 'player'):
         self.username = username
         self.email = email
         self.password_hash = generate_password_hash(password)
         self.is_admin = is_admin
+        self.role = 'admin' if is_admin else role
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
@@ -56,6 +58,8 @@ class RiotAccountInfoUser(db.Model):
 class Tournaments(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tournament_name = db.Column(db.String(30), nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_by = db.relationship('Users', foreign_keys=[created_by_id], backref='created_tournaments')
     games = db.relationship('Games', backref='tournament', lazy=True, cascade="all, delete-orphan")
     # teams participating in the tournament
     teams = db.relationship('Teams', secondary=tournament_teams, backref=db.backref('tournaments', lazy='dynamic'))
@@ -68,8 +72,13 @@ class Tournaments(db.Model):
     # matches for this tournament
     matches = db.relationship('Matches', backref='tournament', lazy=True, cascade="all, delete-orphan")
 
-    def __init__(self, tournament_name: str):
+    def __init__(self, tournament_name: str, format='swiss', status='draft', max_teams=None, rounds=None, created_by_id=None):
         self.tournament_name = tournament_name
+        self.format = format
+        self.status = status
+        self.max_teams = max_teams
+        self.rounds = rounds
+        self.created_by_id = created_by_id
 
     def get_closest_game(self):
         now = datetime.now()
@@ -128,5 +137,6 @@ class Matches(db.Model):
     team_b = db.relationship('Teams', foreign_keys=[team_b_id])
     score_a = db.Column(db.Integer, nullable=True)
     score_b = db.Column(db.Integer, nullable=True)
+    scheduled_at = db.Column(db.DateTime, nullable=True)
     winner_id = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_matches_winner_id'), nullable=True)
     played = db.Column(db.Boolean, default=False)

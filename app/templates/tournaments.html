@@ -2,6 +2,11 @@
 
 {% block content %}
 <div class="tournament-content m-4">
+    {% if current_user.is_authenticated and current_user.role in ['moderator', 'admin'] %}
+    <div class="mb-3">
+        <a href="{{ url_for('routes.create_tournament') }}" class="btn btn-primary">Create tournament</a>
+    </div>
+    {% endif %}
     <div class="tournament-frame">
         {% if tournament_list %}
             {% for tournament in tournament_list %}
@@ -20,7 +25,7 @@
                             <div class="next-game-text-time">{{ closest_game.formatted_game_time() }}</div>
                         </div>
                     </div>
-                    {% if current_user.is_authenticated %}
+                    {% if current_user.is_authenticated and tournament.status == 'draft' %}
                     <form action="{{ url_for('routes.apply_to_tournament', tournament_id=tournament.id) }}" method="post">
                         {{ form.hidden_tag() }}
                         <button type="submit" class="btn btn-primary">Apply to Tournament</button>
@@ -28,7 +33,7 @@
                     {% endif %}
 
                     {# Start tournament button visible only to admins. Functionality to be implemented later. #}
-                    {% if current_user.is_authenticated and current_user.is_admin %}
+                    {% if current_user.is_authenticated and (current_user.is_admin or (current_user.role == 'moderator' and tournament.created_by_id == current_user.id)) and tournament.status == 'draft' %}
                     <form action="{{ url_for('routes.start_tournament_route', tournament_id=tournament.id) }}" method="post" style="display:inline; margin-left:8px;">
                         {{ form.hidden_tag() }}
                         <button type="submit" class="btn btn-danger">Start tournament</button>
@@ -40,14 +45,14 @@
                     <a href="/tournaments/{{ tournament.id }}">
                         <div class="tournament-name">{{ tournament.tournament_name }}</div>
                     </a>
-                    {% if current_user.is_authenticated %}
+                    {% if current_user.is_authenticated and tournament.status == 'draft' %}
                     <form action="{{ url_for('routes.apply_to_tournament', tournament_id=tournament.id) }}" method="post">
                         {{ form.hidden_tag() }}
                         <button type="submit" class="btn btn-primary">Apply to Tournament</button>
                     </form>
                     {% endif %}
 
-                    {% if current_user.is_authenticated and current_user.is_admin and tournament.status != 'active' %}
+                    {% if current_user.is_authenticated and (current_user.is_admin or (current_user.role == 'moderator' and tournament.created_by_id == current_user.id)) and tournament.status == 'draft' %}
                     <form action="{{ url_for('routes.start_tournament_route', tournament_id=tournament.id) }}" method="post" style="display:inline; margin-left:8px;">
                         {{ form.hidden_tag() }}
                         <button type="submit" class="btn btn-danger">Start tournament</button>

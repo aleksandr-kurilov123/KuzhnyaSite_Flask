@@ -3,6 +3,10 @@
   <h1>{{ tournament.tournament_name }}</h1>
   <p class="small muted">Format: {{ tournament.format }} | Status: {{ tournament.status }}{% if tournament.current_round %} | Round: {{ tournament.current_round }}{% endif %}</p>
 
+  {% if can_manage %}
+  <p class="small muted">Tournament manager: {{ tournament.created_by.username if tournament.created_by else 'Admin' }}</p>
+  {% endif %}
+
   <div class="upcoming-games">
     <h2>Upcoming Games</h2>
     {% if upcoming_games %}
@@ -21,7 +25,7 @@
     {% endif %}
   </div>
 
-  {% if current_user.is_authenticated %}
+  {% if current_user.is_authenticated and tournament.status == 'draft' %}
   <form
     action="{{ url_for('routes.apply_to_tournament', tournament_id=tournament.id) }}"
     method="post"
@@ -29,6 +33,21 @@
     {{ form.hidden_tag() }}
     <button type="submit" class="btn btn-primary">Apply to Tournament</button>
   </form>
+  {% endif %}
+
+  {% if can_manage %}
+  <div class="participants mt-4">
+    <h2>Participating teams</h2>
+    {% if tournament.teams %}
+    <ul>
+      {% for team in tournament.teams %}
+      <li><a href="{{ url_for('routes.team_detail', id=team.id) }}">{{ team.team_name }}</a></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No teams have applied yet.</p>
+    {% endif %}
+  </div>
   {% endif %}
 
   <div class="standings mt-4">
@@ -66,8 +85,13 @@
               {% if m.team_b %}{{ m.team_b.team_name }}{% else %}BYE{% endif %}
               {% if m.played %} — <span class="text-success">Result: {{ m.score_a }} : {{ m.score_b }}</span>{% endif %}
             </div>
-            {% if current_user.is_authenticated and current_user.is_admin %}
+            {% if can_manage %}
               {% if not m.played %}
+                <form method="post" action="{{ url_for('routes.reschedule_match', tournament_id=tournament.id, match_id=m.id) }}" class="d-flex gap-2 mb-2">
+                  {{ form.hidden_tag() }}
+                  <input type="datetime-local" name="scheduled_at" value="{{ m.scheduled_at.strftime('%Y-%m-%dT%H:%M') if m.scheduled_at else '' }}" class="form-control">
+                  <button type="submit" class="btn btn-sm btn-secondary">Reschedule</button>
+                </form>
                 <form method="post" action="{{ url_for('routes.record_match_result', tournament_id=tournament.id, match_id=m.id) }}" class="d-flex gap-2">
                   {{ form.hidden_tag() }}
                   <input type="number" name="score_a" placeholder="A" class="form-control" style="width:70px;" required>

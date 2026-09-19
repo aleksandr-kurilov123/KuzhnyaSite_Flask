@@ -12,15 +12,28 @@ def clean_input(input_string: str) -> str:
     cleaned = ''.join(c for c in cleaned if c.isprintable())
     return cleaned.strip()
 
-def admin_required(f):
+def is_admin_user(user):
+    return user.is_admin or user.role == 'admin'
+
+
+def can_manage_tournament(user, tournament):
+    return is_admin_user(user) or (
+        user.role == 'moderator' and tournament.created_by_id == user.id
+    )
+
+
+def staff_required(f):
     @wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
-        if not current_user.is_admin:
+        if not is_admin_user(current_user) and current_user.role != 'moderator':
             flash("You do not have permission to access this page.")
             return redirect(url_for("routes.home"))
         return f(*args, **kwargs)
     return decorated_function
+
+
+admin_required = staff_required
 
 def get_user_by_email_or_username(identifier: str):
     return Users.query.filter((Users.email == identifier) | (Users.username == identifier)).first()

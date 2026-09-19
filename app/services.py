@@ -85,7 +85,8 @@ def add_tournament(form):
         format=form.format.data if hasattr(form, 'format') else 'swiss',
         max_teams=form.max_teams.data if hasattr(form, 'max_teams') else None,
         rounds=form.rounds.data if hasattr(form, 'rounds') else None,
-        status='registration'
+        status='draft',
+        created_by_id=current_user.id
     )
     db.session.add(tournament)
     db.session.commit()
@@ -269,6 +270,8 @@ def edit_user(form):
             user.email = form.email.data
         if form.password.data:
             user.password_hash = generate_password_hash(form.password.data)
+        user.role = form.role.data
+        user.is_admin = user.role == 'admin'
         db.session.commit()
         return user
     return None

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="tournament-overview">
+    <h1>Create tournament</h1>
+    <form method="post">
+        {{ form.hidden_tag() }}
+        <div class="input-group1">
+            {{ form.tournament_name.label }} {{ form.tournament_name }}
+        </div>
+        <div class="input-group1">
+            {{ form.format.label }} {{ form.format }}
+        </div>
+        <div class="input-group1">
+            {{ form.max_teams.label }} {{ form.max_teams }}
+        </div>
+        <div class="input-group1">
+            {{ form.rounds.label }} {{ form.rounds }}
+        </div>
+        {{ form.submit }}
+    </form>
+</div>
+{% endblock %}

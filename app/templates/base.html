@@ -37,9 +37,9 @@
                 </ul>
                 {% if session["username"] %}
                 <div class="d-flex container-fluid justify-content-end">
-                    {% if current_user.is_authenticated and current_user.is_admin %}
-                    <a href="/admin">
-                        <button type="button" class="button-colored me-2">Admin panel</button>
+                    {% if current_user.is_authenticated and (current_user.is_admin or current_user.role in ['moderator', 'admin']) %}
+                    <a href="{{ url_for('routes.create_tournament') }}">
+                        <button type="button" class="button-colored me-2">Create tournament</button>
                     </a>
                     {% endif %}
                     <a href="/profile">
