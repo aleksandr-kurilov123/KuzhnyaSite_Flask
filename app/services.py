@@ -1,7 +1,20 @@
 from flask import flash, redirect, url_for
 from flask_login import current_user
 from .models import Users, RiotAccountInfoUser, db, Tournaments, Games, Teams, Matches
+from datetime import datetime, timedelta
 from . import utils
+from . import tournament_engine
+from .tournament_engine import (
+    _create_next_single_elimination_round,
+    _double_elimination_pairs,
+    _elimination_pairs,
+    _new_match,
+    _next_match_time,
+    _round_robin_pairs,
+    generate_swiss_pairings,
+    start_tournament as engine_start_tournament,
+    submit_match_result as engine_submit_match_result,
+)
 import os
 import re
 from werkzeug.security import generate_password_hash
@@ -86,7 +99,9 @@ def add_tournament(form):
         max_teams=form.max_teams.data if hasattr(form, 'max_teams') else None,
         rounds=form.rounds.data if hasattr(form, 'rounds') else None,
         status='draft',
-        created_by_id=current_user.id
+        created_by_id=current_user.id,
+        auto_schedule=form.auto_schedule.data,
+        schedule_start_at=form.schedule_start_at.data
     )
     db.session.add(tournament)
     db.session.commit()
@@ -94,162 +109,39 @@ def add_tournament(form):
 
 
 def generate_swiss_pairings(tournament, round_number=1):
-    import random
+    return tournament_engine.generate_swiss_pairings(tournament, round_number=round_number)
 
-    team_ids = [team.id for team in tournament.teams]
-    if not team_ids:
-        return []
 
-    scores = {team_id: 0 for team_id in team_ids}
-    opponents = {team_id: set() for team_id in team_ids}
-    bye_recipients = set()
+def _next_match_time(tournament):
+    return tournament_engine._next_match_time(tournament)
 
-    for match in tournament.matches:
-        if match.team_a_id not in scores:
-            continue
 
-        if match.team_b_id is None:
-            if match.played and match.winner_id == match.team_a_id:
-                scores[match.team_a_id] += 1
-                bye_recipients.add(match.team_a_id)
-            continue
+def _new_match(tournament, round_number, team_a_id, team_b_id=None, bracket=None, bracket_slot=None):
+    return tournament_engine._new_match(tournament, round_number, team_a_id, team_b_id, bracket, bracket_slot)
 
-        if match.team_b_id not in scores:
-            continue
-        opponents[match.team_a_id].add(match.team_b_id)
-        opponents[match.team_b_id].add(match.team_a_id)
-        if match.played and match.winner_id in scores:
-            scores[match.winner_id] += 1
 
-    if round_number == 1:
-        random.shuffle(team_ids)
-        team_ids.sort(key=lambda team_id: scores[team_id], reverse=True)
-    else:
-        team_ids.sort(key=lambda team_id: (-scores[team_id], team_id))
+def _round_robin_pairs(team_ids):
+    return tournament_engine._round_robin_pairs(team_ids)
 
-    bye_team_id = None
-    if len(team_ids) % 2:
-        eligible_byes = [team_id for team_id in team_ids if team_id not in bye_recipients]
-        bye_candidates = eligible_byes or team_ids
-        bye_team_id = min(bye_candidates, key=lambda team_id: (scores[team_id], team_id))
-        team_ids.remove(bye_team_id)
 
-    def pair_remaining(remaining, allow_rematches=False):
-        if not remaining:
-            return []
+def _elimination_pairs(team_ids):
+    return tournament_engine._elimination_pairs(team_ids)
 
-        first_team_id = remaining[0]
-        candidates = remaining[1:]
-        candidates.sort(key=lambda team_id: (
-            team_id in opponents[first_team_id] if not allow_rematches else False,
-            scores[team_id] != scores[first_team_id],
-            abs(scores[team_id] - scores[first_team_id]),
-            team_id,
-        ))
 
-        for candidate_id in candidates:
-            if not allow_rematches and candidate_id in opponents[first_team_id]:
-                continue
-            next_remaining = [
-                team_id for team_id in remaining
-                if team_id not in (first_team_id, candidate_id)
-            ]
-            result = pair_remaining(next_remaining, allow_rematches)
-            if result is not None:
-                return [(first_team_id, candidate_id), *result]
-        return None
+def _create_next_single_elimination_round(tournament):
+    return tournament_engine._create_next_single_elimination_round(tournament)
 
-    pairs = pair_remaining(team_ids)
-    if pairs is None:
-        pairs = pair_remaining(team_ids, allow_rematches=True)
-    if pairs is None:
-        raise ValueError("Unable to create Swiss pairings")
-    if bye_team_id is not None:
-        pairs.append((bye_team_id, None))
-    return pairs
+
+def _double_elimination_pairs(tournament):
+    return tournament_engine._double_elimination_pairs(tournament)
 
 
 def start_tournament(tournament_id):
-    tournament = Tournaments.query.get(tournament_id)
-    if not tournament:
-        return {'error': 'Tournament not found'}, 404
-    if len(tournament.teams) < 2:
-        return {'error': 'Not enough teams to start'}, 400
-    tournament.status = 'active'
-    tournament.current_round = 1
-    db.session.add(tournament)
-    pairs = []
-    if tournament.format == 'swiss':
-        pairs = generate_swiss_pairings(tournament, round_number=1)
-    else:
-        # fallback to simple random pairing
-        import random
-        tlist = list(tournament.teams)
-        random.shuffle(tlist)
-        i = 0
-        while i < len(tlist):
-            a = tlist[i]
-            b = tlist[i+1] if i+1 < len(tlist) else None
-            pairs.append((a.id, b.id if b else None))
-            i += 2
-
-    # create matches
-    for a_id, b_id in pairs:
-        match = Matches(tournament_id=tournament.id, round_number=1, team_a_id=a_id, team_b_id=b_id)
-        if b_id is None:
-            match.played = True
-            match.winner_id = a_id
-        db.session.add(match)
-
-    db.session.commit()
-    return {'message': 'Tournament started', 'pairs': pairs}, 200
+    return engine_start_tournament(tournament_id)
 
 
 def submit_match_result(match_id, score_a, score_b):
-    match = Matches.query.get(match_id)
-    if not match:
-        return {'error': 'Match not found'}, 404
-    match.score_a = score_a
-    match.score_b = score_b
-    if score_a is None or score_b is None:
-        return {'error': 'Scores required'}, 400
-    if score_a > score_b:
-        match.winner_id = match.team_a_id
-    elif score_b > score_a:
-        match.winner_id = match.team_b_id
-    else:
-        match.winner_id = None
-    match.played = True
-    db.session.add(match)
-    db.session.commit()
-
-    # after submitting, check if all matches in the round are played and auto-create next round
-    tournament = Tournaments.query.get(match.tournament_id)
-    current_round = match.round_number
-    round_matches = Matches.query.filter_by(tournament_id=tournament.id, round_number=current_round).all()
-    if all(m.played for m in round_matches):
-        # advance round if needed
-        if tournament.rounds is None or tournament.current_round < tournament.rounds:
-            tournament.current_round += 1
-            db.session.add(tournament)
-            # generate next round pairings
-            if tournament.format == 'swiss':
-                pairs = generate_swiss_pairings(tournament, round_number=tournament.current_round)
-            else:
-                pairs = []
-            for a_id, b_id in pairs:
-                new_match = Matches(tournament_id=tournament.id, round_number=tournament.current_round, team_a_id=a_id, team_b_id=b_id)
-                if b_id is None:
-                    new_match.played = True
-                    new_match.winner_id = a_id
-                db.session.add(new_match)
-            db.session.commit()
-        else:
-            tournament.status = 'finished'
-            db.session.add(tournament)
-            db.session.commit()
-
-    return {'message': 'Result recorded'}, 200
+    return engine_submit_match_result(match_id, score_a, score_b)
 
 def add_game(form):
     game = Games(

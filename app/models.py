@@ -69,24 +69,28 @@ class Tournaments(db.Model):
     max_teams = db.Column(db.Integer, nullable=True)
     rounds = db.Column(db.Integer, nullable=True)
     current_round = db.Column(db.Integer, nullable=False, default=0)
+    auto_schedule = db.Column(db.Boolean, nullable=False, default=False)
+    schedule_start_at = db.Column(db.DateTime, nullable=True)
     # matches for this tournament
     matches = db.relationship('Matches', backref='tournament', lazy=True, cascade="all, delete-orphan")
 
-    def __init__(self, tournament_name: str, format='swiss', status='draft', max_teams=None, rounds=None, created_by_id=None):
+    def __init__(self, tournament_name: str, format='swiss', status='draft', max_teams=None, rounds=None, created_by_id=None, auto_schedule=False, schedule_start_at=None):
         self.tournament_name = tournament_name
         self.format = format
         self.status = status
         self.max_teams = max_teams
         self.rounds = rounds
         self.created_by_id = created_by_id
+        self.auto_schedule = auto_schedule
+        self.schedule_start_at = schedule_start_at
 
-    def get_closest_game(self):
+    def get_closest_match(self):
         now = datetime.now()
-        future_games = [game for game in self.games if game.game_time > now]
-        if future_games:
-            closest_game = min(future_games, key=lambda game: game.game_time)
-            return closest_game
-        return None
+        upcoming_matches = [
+            match for match in self.matches
+            if not match.played and match.scheduled_at and match.scheduled_at > now
+        ]
+        return min(upcoming_matches, key=lambda match: match.scheduled_at, default=None)
 
     def standings(self):
         # compute simple standings based on match wins
@@ -138,5 +142,7 @@ class Matches(db.Model):
     score_a = db.Column(db.Integer, nullable=True)
     score_b = db.Column(db.Integer, nullable=True)
     scheduled_at = db.Column(db.DateTime, nullable=True)
+    bracket = db.Column(db.String(20), nullable=True)
+    bracket_slot = db.Column(db.Integer, nullable=True)
     winner_id = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_matches_winner_id'), nullable=True)
     played = db.Column(db.Boolean, default=False)

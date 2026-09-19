@@ -10,8 +10,8 @@
     <div class="tournament-frame">
         {% if tournament_list %}
             {% for tournament in tournament_list %}
-                {% set closest_game = tournament.get_closest_game() %}
-                {% if closest_game %}
+                {% set closest_match = tournament.get_closest_match() %}
+                {% if closest_match %}
                 <div class="tournament-card">
                     <a href="/tournaments/{{ tournament.id }}">
                         <div class="tournament-name">{{ tournament.tournament_name }}</div>
@@ -19,10 +19,10 @@
                     <div class="tournament-meta small muted">Format: {{ tournament.format }} | Status: {{ tournament.status }}{% if tournament.current_round %} | Round: {{ tournament.current_round }}{% endif %}</div>
                     <div class="divider-small"></div>
                     <div class="next-game-box">
-                        <div>Следующая игра:</div>
+                        <div>Следующий матч:</div>
                         <div class="next-game-text">
-                            <div class="next-game-text-name">{{ closest_game.game_name }}</div>
-                            <div class="next-game-text-time">{{ closest_game.formatted_game_time() }}</div>
+                            <div class="next-game-text-name">{{ closest_match.team_a.team_name if closest_match.team_a else 'TBD' }} vs {{ closest_match.team_b.team_name if closest_match.team_b else 'BYE' }}</div>
+                            <div class="next-game-text-time">{{ closest_match.scheduled_at.strftime('%H:%M %d-%m-%Y') }}</div>
                         </div>
                     </div>
                     {% if current_user.is_authenticated and tournament.status == 'draft' %}

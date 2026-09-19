@@ -17,6 +17,12 @@
         <div class="input-group1">
             {{ form.rounds.label }} {{ form.rounds }}
         </div>
+        <div class="input-group1">
+            {{ form.auto_schedule() }} {{ form.auto_schedule.label }}
+        </div>
+        <div class="input-group1">
+            {{ form.schedule_start_at.label }} {{ form.schedule_start_at(placeholder="YYYY-MM-DD HH:MM") }}
+        </div>
         {{ form.submit }}
     </form>
 </div>

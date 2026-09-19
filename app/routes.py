@@ -100,10 +100,14 @@ def get_tournament_by_id(id):
         flash("Tournament not found.")
         return redirect(url_for("routes.get_tournaments"))
     
-    upcoming_games = Games.query.filter(Games.tournament_id == id, Games.game_time > datetime.now()).order_by(Games.game_time).all()
+    upcoming_matches = Matches.query.filter(
+        Matches.tournament_id == id,
+        Matches.scheduled_at > datetime.now(),
+        Matches.played.is_(False),
+    ).order_by(Matches.scheduled_at).all()
     form = ApplyToTournamentForm()  # Create an instance of the form
     can_manage = current_user.is_authenticated and can_manage_tournament(current_user, tournament)
-    return render_template("tournament_page.html", tournament=tournament, upcoming_games=upcoming_games, form=form, can_manage=can_manage)
+    return render_template("tournament_page.html", tournament=tournament, upcoming_matches=upcoming_matches, form=form, can_manage=can_manage)
 
 @routes.route("/apply_to_tournament/<int:tournament_id>", methods=["POST"])
 @login_required
@@ -268,12 +272,21 @@ def get_tournament_info(id):
     if not tournament:
         return jsonify({"error": "Tournament not found"}), 404
 
-    upcoming_games = Games.query.filter(Games.tournament_id == id, Games.game_time > datetime.now()).order_by(Games.game_time).all()
-    participants = Users.query.join(Users.games).filter(Games.tournament_id == id).all()
+    upcoming_matches = Matches.query.filter(
+        Matches.tournament_id == id,
+        Matches.scheduled_at > datetime.now(),
+        Matches.played.is_(False),
+    ).order_by(Matches.scheduled_at).all()
+    tournament = Tournaments.query.get(id)
 
     return jsonify({
-        "upcoming_games": [{"game_name": game.game_name, "game_time": game.game_time.strftime('%Y-%m-%d %H:%M')} for game in upcoming_games],
-        "participants": [{"username": user.username, "email": user.email} for user in participants]
+        "upcoming_matches": [{
+            "round": match.round_number,
+            "team_a": match.team_a.team_name if match.team_a else "TBD",
+            "team_b": match.team_b.team_name if match.team_b else "BYE",
+            "scheduled_at": match.scheduled_at.strftime('%Y-%m-%d %H:%M'),
+        } for match in upcoming_matches],
+        "participants": [{"team_name": team.team_name, "team_id": team.id} for team in tournament.teams]
     })
 
 @routes.route("/tfttools")

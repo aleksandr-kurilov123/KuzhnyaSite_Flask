@@ -7,21 +7,21 @@
   <p class="small muted">Tournament manager: {{ tournament.created_by.username if tournament.created_by else 'Admin' }}</p>
   {% endif %}
 
-  <div class="upcoming-games">
-    <h2>Upcoming Games</h2>
-    {% if upcoming_games %}
+  <div class="upcoming-matches">
+    <h2>Upcoming matches</h2>
+    {% if upcoming_matches %}
     <ul class="list-group-flush">
-      {% for game in upcoming_games %}
+      {% for match in upcoming_matches %}
       <li class="list-group-item">
-        <div class="game-details">
-          <h3>{{ game.game_name }}</h3>
-          <p><strong>Time:</strong> {{ game.formatted_game_time() }}</p>
+        <div class="match-details">
+          <h3>{{ match.team_a.team_name if match.team_a else 'TBD' }} vs {{ match.team_b.team_name if match.team_b else 'BYE' }}</h3>
+          <p><strong>Time:</strong> {{ match.scheduled_at.strftime('%H:%M %d-%m-%Y') }}</p>
         </div>
       </li>
       {% endfor %}
     </ul>
     {% else %}
-    <p>No upcoming games.</p>
+    <p>No upcoming matches.</p>
     {% endif %}
   </div>
 
@@ -84,6 +84,7 @@
               vs
               {% if m.team_b %}{{ m.team_b.team_name }}{% else %}BYE{% endif %}
               {% if m.played %} — <span class="text-success">Result: {{ m.score_a }} : {{ m.score_b }}</span>{% endif %}
+              {% if m.scheduled_at %} <span class="small muted">({{ m.scheduled_at.strftime('%H:%M %d-%m-%Y') }})</span>{% endif %}
             </div>
             {% if can_manage %}
               {% if not m.played %}

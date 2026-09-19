@@ -7,23 +7,23 @@ document.getElementById('tournament-selector').addEventListener('change', functi
             .then(response => response.json())
             .then(data => {
                 var tournamentInfo = document.getElementById('tournament-info');
-                var upcomingGamesList = document.getElementById('upcoming-games-list');
+                var upcomingMatchesList = document.getElementById('upcoming-matches-list');
                 var participantsList = document.getElementById('participants-list');
 
-                upcomingGamesList.innerHTML = '';
+                upcomingMatchesList.innerHTML = '';
                 participantsList.innerHTML = '';
 
-                data.upcoming_games.forEach(game => {
+                data.upcoming_matches.forEach(match => {
                     var li = document.createElement('li');
                     li.className = 'd-flex gap-1';
-                    li.innerHTML = `<div class="game-name">${game.game_name}</div> <div class="game-time">${game.game_time}</div>`;
-                    upcomingGamesList.appendChild(li);
+                    li.innerHTML = `<div class="match-name">Round ${match.round}: ${match.team_a} vs ${match.team_b}</div> <div class="match-time">${match.scheduled_at}</div>`;
+                    upcomingMatchesList.appendChild(li);
                 });
 
-                data.participants.forEach(user => {
+                data.participants.forEach(team => {
                     var li = document.createElement('li');
                     li.className = 'd-flex';
-                    li.innerHTML = `<div class="username">${user.username}</div> <div class="email">${user.email}</div>`;
+                    li.innerHTML = `<div class="team-name">${team.team_name}</div>`;
                     participantsList.appendChild(li);
                 });
 

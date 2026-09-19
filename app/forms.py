@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, DateTimeField, IntegerField
+from wtforms import StringField, PasswordField, SubmitField, SelectField, DateTimeField, IntegerField, BooleanField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional
 
 class LoginForm(FlaskForm):
@@ -29,9 +29,11 @@ class ConnectForm(FlaskForm):
 
 class TournamentForm(FlaskForm):
     tournament_name = StringField('Tournament Name', validators=[DataRequired()])
-    format = SelectField('Format', choices=[('swiss', 'Swiss'), ('round_robin', 'Round Robin'), ('single_elim', 'Single Elimination')], validators=[DataRequired()], default='swiss')
+    format = SelectField('Format', choices=[('swiss', 'Swiss'), ('round_robin', 'Round Robin'), ('single_elim', 'Single Elimination'), ('double_elim', 'Double Elimination')], validators=[DataRequired()], default='swiss')
     max_teams = IntegerField('Max Teams', validators=[Optional()])
     rounds = IntegerField('Rounds', validators=[Optional()])
+    auto_schedule = BooleanField('Automatically schedule matches')
+    schedule_start_at = DateTimeField('First match time', format='%Y-%m-%d %H:%M', validators=[Optional()])
     submit = SubmitField('Add Tournament', render_kw={"class": "sign"})
 
 class GameForm(FlaskForm):
