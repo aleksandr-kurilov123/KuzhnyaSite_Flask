@@ -39,9 +39,9 @@ class TournamentTeam(db.Model):
     legacy_team = db.relationship('Teams', foreign_keys=[legacy_team_id], backref='legacy_tournament_teams')
     captain = db.relationship('Users', foreign_keys=[captain_id], backref=db.backref('captained_tournament_teams', lazy='dynamic'))
     members = db.relationship('TournamentTeamMember', back_populates='tournament_team', cascade='all, delete-orphan')
-    matches_as_a = db.relationship('Matches', foreign_keys='Matches.team_a_id', backref='team_a_tournament_team')
-    matches_as_b = db.relationship('Matches', foreign_keys='Matches.team_b_id', backref='team_b_tournament_team')
-    won_matches = db.relationship('Matches', foreign_keys='Matches.winner_id', backref='winner_tournament_team')
+    matches_as_a = db.relationship('Matches', foreign_keys='Matches.team_a_id', back_populates='team_a')
+    matches_as_b = db.relationship('Matches', foreign_keys='Matches.team_b_id', back_populates='team_b')
+    won_matches = db.relationship('Matches', foreign_keys='Matches.winner_id', back_populates='winner')
 
     __table_args__ = (
         db.UniqueConstraint('tournament_id', 'team_name', name='uq_tournament_team_name'),
@@ -172,12 +172,13 @@ class Matches(db.Model):
     round_number = db.Column(db.Integer, nullable=False, default=1)
     team_a_id = db.Column(db.Integer, db.ForeignKey('tournament_teams.id', name='fk_matches_team_a_id'), nullable=True)
     team_b_id = db.Column(db.Integer, db.ForeignKey('tournament_teams.id', name='fk_matches_team_b_id'), nullable=True)
-    team_a = db.relationship('TournamentTeam', foreign_keys=[team_a_id])
-    team_b = db.relationship('TournamentTeam', foreign_keys=[team_b_id])
+    team_a = db.relationship('TournamentTeam', foreign_keys=[team_a_id], back_populates='matches_as_a')
+    team_b = db.relationship('TournamentTeam', foreign_keys=[team_b_id], back_populates='matches_as_b')
     score_a = db.Column(db.Integer, nullable=True)
     score_b = db.Column(db.Integer, nullable=True)
     scheduled_at = db.Column(db.DateTime, nullable=True)
     bracket = db.Column(db.String(20), nullable=True)
     bracket_slot = db.Column(db.Integer, nullable=True)
     winner_id = db.Column(db.Integer, db.ForeignKey('tournament_teams.id', name='fk_matches_winner_id'), nullable=True)
+    winner = db.relationship('TournamentTeam', foreign_keys=[winner_id], back_populates='won_matches')
     played = db.Column(db.Boolean, default=False)
