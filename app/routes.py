@@ -23,7 +23,7 @@ def before_request():
 @routes.route("/")
 @routes.route("/home")
 def home():
-    teams_looking_for_members = Teams.query.filter_by(looking_for_members=True).all()
+    teams_looking_for_members = TournamentTeam.query.filter_by(looking_for_members=True).all()
     return render_template("index.html", teams_looking_for_members=teams_looking_for_members)
 
 @routes.route("/login", methods=["GET", "POST"])
@@ -77,8 +77,13 @@ def profile():
             continue
         seen.add(key)
         unique_participations.append(item)
+
+    current_team = user.team
+    if not current_team and unique_participations:
+        current_team = unique_participations[0]['team']
+
     refresh_riot_account_info(user)
-    return render_template("profile.html", user=user, game_list=game_list, tournament_participations=unique_participations)
+    return render_template("profile.html", user=user, game_list=game_list, tournament_participations=unique_participations, current_team=current_team)
 
 @routes.route("/connect", methods=["GET", "POST"])
 @login_required

@@ -90,22 +90,34 @@
 
         <div class="profile-teams shadow-rb">
             <h2>Команда</h2>
-            {% if user.team %}
+            {% if current_team %}
                 <div class="team-info d-flex flex-column align-items-center">
-                    <h3>Команда: {{ user.team.team_name }}</h3>
-                    <p>Капитан: {{ user.team.captain.username }}</p>
-                        {% for member in user.team.members %}
+                    <h3>Команда: {{ current_team.team_name }}</h3>
+                    <p>Капитан: {{ current_team.captain.username if current_team.captain else user.username }}</p>
+                    {% if current_team.members is defined %}
+                        {% for member in current_team.members %}
+                        <div class="team-member">
+                            <div>
+                                {% if member.user and member.user.riot_user %}
+                                    <img src="https://cdn.communitydragon.org/latest/profile-icon/{{ member.user.riot_user.icon_id }}" alt="Icon" width="24" height="24">
+                                {% endif %}
+                                {{ member.user.username if member.user else member.username }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% elif current_team.members is not defined and current_team.team %}
+                        {% for member in current_team.team.members %}
                         <div class="team-member">
                             <div>
                                 <img src="https://cdn.communitydragon.org/latest/profile-icon/{{ member.riot_user.icon_id }}" alt="Icon" width="24" height="24">
                                 {{ member.username }}
                             </div>
                         </div>
-
                         {% endfor %}
-                    {% if user.team.captain_id == user.id %}
+                    {% endif %}
+                    {% if current_team.captain_id == user.id and current_team.id %}
                     <div class="input-group" >
-                    <button type="button" id="generate-link-btn" class="btn btn-outline-secondary" onclick="generateTeamLink('{{ user.team.id }}')">Generate Team Link</button>
+                    <button type="button" id="generate-link-btn" class="btn btn-outline-secondary" onclick="generateTeamLink('{{ current_team.id }}')">Generate Team Link</button>
                     <input type="text" id="team-link" value="" class="form-control" readonly></input>
                     </div>
                     {% endif %}
