@@ -198,6 +198,25 @@ def start_tournament_route(tournament_id):
     return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
 
 
+@routes.route("/tournaments/<int:tournament_id>/finish", methods=["POST"])
+@staff_required
+def finish_tournament_route(tournament_id):
+    tournament = Tournaments.query.get(tournament_id)
+    if not tournament:
+        flash("Tournament not found.")
+        return redirect(url_for("routes.get_tournaments"))
+    if not can_manage_tournament(current_user, tournament):
+        flash("You can only manage tournaments that you created.")
+        return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
+
+    result, status = finish_tournament(tournament_id)
+    if status != 200:
+        flash(result.get('error', 'Unable to finish tournament'))
+    else:
+        flash('Tournament finished')
+    return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
+
+
 @routes.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/result", methods=["POST"])
 @staff_required
 def record_match_result(tournament_id, match_id):
@@ -208,6 +227,9 @@ def record_match_result(tournament_id, match_id):
         return redirect(url_for('routes.get_tournaments'))
     if not can_manage_tournament(current_user, tournament):
         flash("You can only manage tournaments that you created.")
+        return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
+    if tournament.status == 'finished':
+        flash("Finished tournaments cannot be changed.")
         return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
     # expects form fields 'score_a' and 'score_b'
     try:
@@ -235,6 +257,9 @@ def reschedule_match(tournament_id, match_id):
         return redirect(url_for('routes.get_tournaments'))
     if not can_manage_tournament(current_user, tournament):
         flash("You can only manage tournaments that you created.")
+        return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
+    if tournament.status == 'finished':
+        flash("Finished tournaments cannot be changed.")
         return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
     if match.played:
         flash('Played matches cannot be rescheduled.')

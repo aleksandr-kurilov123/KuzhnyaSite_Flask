@@ -5,6 +5,12 @@
 
   {% if can_manage %}
   <p class="small muted">Tournament manager: {{ tournament.created_by.username if tournament.created_by else 'Admin' }}</p>
+  {% if tournament.status == 'active' %}
+  <form action="{{ url_for('routes.finish_tournament_route', tournament_id=tournament.id) }}" method="post" class="mt-2" onsubmit="return confirm('Finish this tournament? Unplayed matches will remain without results.');">
+    {{ form.hidden_tag() }}
+    <button type="submit" class="btn btn-danger">Finish tournament</button>
+  </form>
+  {% endif %}
   {% endif %}
 
   <div class="upcoming-matches">
@@ -86,7 +92,7 @@
               {% if m.played %} — <span class="text-success">Result: {{ m.score_a }} : {{ m.score_b }}</span>{% endif %}
               {% if m.scheduled_at %} <span class="small muted">({{ m.scheduled_at.strftime('%H:%M %d-%m-%Y') }})</span>{% endif %}
             </div>
-            {% if can_manage %}
+            {% if can_manage and tournament.status == 'active' %}
               {% if not m.played %}
                 <form method="post" action="{{ url_for('routes.reschedule_match', tournament_id=tournament.id, match_id=m.id) }}" class="d-flex gap-2 mb-2">
                   {{ form.hidden_tag() }}

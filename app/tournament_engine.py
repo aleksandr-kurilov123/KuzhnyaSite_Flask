@@ -235,12 +235,30 @@ def start_tournament(tournament_id):
     return {'message': 'Tournament started', 'pairs': pairs}, 200
 
 
+def finish_tournament(tournament_id):
+    tournament = Tournaments.query.get(tournament_id)
+    if not tournament:
+        return {'error': 'Tournament not found'}, 404
+    if tournament.status == 'draft':
+        return {'error': 'Tournament has not started'}, 400
+    if tournament.status == 'finished':
+        return {'error': 'Tournament is already finished'}, 400
+
+    tournament.status = 'finished'
+    db.session.add(tournament)
+    db.session.commit()
+    return {'message': 'Tournament finished'}, 200
+
+
 def submit_match_result(match_id, score_a, score_b):
     from .models import Matches, Tournaments
 
     match = Matches.query.get(match_id)
     if not match:
         return {'error': 'Match not found'}, 404
+    tournament = Tournaments.query.get(match.tournament_id)
+    if tournament.status == 'finished':
+        return {'error': 'Finished tournaments cannot be changed'}, 400
     match.score_a = score_a
     match.score_b = score_b
     if score_a is None or score_b is None:
@@ -256,7 +274,6 @@ def submit_match_result(match_id, score_a, score_b):
     db.session.commit()
 
     # Generate the next round only after every match in the current round is complete.
-    tournament = Tournaments.query.get(match.tournament_id)
     current_round = match.round_number
     round_matches = Matches.query.filter_by(tournament_id=tournament.id, round_number=current_round).all()
     if all(m.played for m in round_matches):

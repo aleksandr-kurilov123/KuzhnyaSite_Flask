@@ -12,6 +12,7 @@ from .tournament_engine import (
     _next_match_time,
     _round_robin_pairs,
     generate_swiss_pairings,
+    finish_tournament as engine_finish_tournament,
     start_tournament as engine_start_tournament,
     submit_match_result as engine_submit_match_result,
 )
@@ -138,6 +139,10 @@ def _double_elimination_pairs(tournament):
 
 def start_tournament(tournament_id):
     return engine_start_tournament(tournament_id)
+
+
+def finish_tournament(tournament_id):
+    return engine_finish_tournament(tournament_id)
 
 
 def submit_match_result(match_id, score_a, score_b):
