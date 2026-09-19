@@ -7,6 +7,9 @@
         <a href="{{ url_for('routes.create_tournament') }}" class="btn btn-primary">Create tournament</a>
     </div>
     {% endif %}
+    <div class="mb-3">
+        <a href="{{ url_for('routes.tournament_history') }}" class="btn btn-outline-secondary">Tournament history</a>
+    </div>
     <div class="tournament-frame">
         {% if tournament_list %}
             {% for tournament in tournament_list %}

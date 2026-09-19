@@ -97,9 +97,15 @@ def connect():
 
 @routes.route("/tournaments")
 def get_tournaments():
-    tournaments = Tournaments.query.all()
+    tournaments = Tournaments.query.filter(Tournaments.status != 'finished').order_by(Tournaments.id.desc()).all()
     form = ApplyToTournamentForm()  # Create an instance of the form
     return render_template("tournaments.html", tournament_list=tournaments, form=form)
+
+
+@routes.route("/tournaments/history")
+def tournament_history():
+    tournaments = Tournaments.query.filter_by(status='finished').order_by(Tournaments.id.desc()).all()
+    return render_template("tournament_history.html", tournament_list=tournaments)
 
 
 @routes.route("/tournaments/create", methods=["GET", "POST"])

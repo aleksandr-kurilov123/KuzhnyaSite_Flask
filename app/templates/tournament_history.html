@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="tournament-content m-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Tournament history</h1>
+        <a href="{{ url_for('routes.get_tournaments') }}" class="btn btn-outline-secondary">Current tournaments</a>
+    </div>
+
+    <div class="tournament-frame">
+        {% if tournament_list %}
+            {% for tournament in tournament_list %}
+            <div class="tournament-card">
+                <a href="{{ url_for('routes.get_tournament_by_id', id=tournament.id) }}">
+                    <div class="tournament-name">{{ tournament.tournament_name }}</div>
+                </a>
+                <div class="tournament-meta small muted">
+                    Format: {{ tournament.format }} | Status: Finished
+                    {% if tournament.current_round %} | Final round: {{ tournament.current_round }}{% endif %}
+                </div>
+                <div class="divider-small"></div>
+                <div class="small">
+                    {{ tournament.teams|length }} participating team{{ '' if tournament.teams|length == 1 else 's' }}
+                    · {{ tournament.matches|length }} match{{ '' if tournament.matches|length == 1 else 'es' }}
+                </div>
+                <a href="{{ url_for('routes.get_tournament_by_id', id=tournament.id) }}" class="btn btn-sm btn-outline-primary mt-2">View results</a>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="header-text-grey flex-grow-1 align-content-center">No finished tournaments yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
