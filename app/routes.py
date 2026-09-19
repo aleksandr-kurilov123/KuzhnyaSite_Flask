@@ -2,7 +2,7 @@ from flask import render_template, redirect, url_for, request, flash, session, j
 from flask_login import login_user, login_required, logout_user, current_user
 from . import db
 from .forms import LoginForm, RegisterForm, ConnectForm, TournamentForm, GameForm, EditUserForm, TeamForm, EditTeamForm, JoinTeamForm, ApplyToTournamentForm
-from .models import Users, RiotAccountInfoUser, Tournaments, Games, Teams, Matches
+from .models import Users, RiotAccountInfoUser, Tournaments, Games, Teams, Matches, TournamentTeam, TournamentTeamMember
 from .services import *
 from .utils import admin_required, can_manage_tournament, get_user_by_email_or_username, is_admin_user, staff_required
 import random
@@ -23,7 +23,8 @@ def before_request():
 @routes.route("/")
 @routes.route("/home")
 def home():
-    return render_template("index.html")
+    teams_looking_for_members = Teams.query.filter_by(looking_for_members=True).all()
+    return render_template("index.html", teams_looking_for_members=teams_looking_for_members)
 
 @routes.route("/login", methods=["GET", "POST"])
 def login():
@@ -63,8 +64,21 @@ def logout():
 def profile():
     user = current_user
     game_list = user.games
+    tournament_participations = []
+    for tournament_team in TournamentTeam.query.filter_by(captain_id=user.id).all():
+        tournament_participations.append({"tournament": tournament_team.tournament, "team": tournament_team})
+    for membership in user.tournament_team_memberships:
+        tournament_participations.append({"tournament": membership.tournament_team.tournament, "team": membership.tournament_team})
+    seen = set()
+    unique_participations = []
+    for item in tournament_participations:
+        key = (item['tournament'].id, item['team'].id)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_participations.append(item)
     refresh_riot_account_info(user)
-    return render_template("profile.html", user=user, game_list=game_list)
+    return render_template("profile.html", user=user, game_list=game_list, tournament_participations=unique_participations)
 
 @routes.route("/connect", methods=["GET", "POST"])
 @login_required
@@ -120,7 +134,7 @@ def apply_to_tournament(tournament_id):
     if team.captain_id != current_user.id:
         flash("Only team captains can apply to tournaments.")
         return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
-    
+
     tournament = Tournaments.query.get(tournament_id)
     if not tournament:
         flash("Tournament not found.")
@@ -128,16 +142,27 @@ def apply_to_tournament(tournament_id):
     if tournament.status != 'draft':
         flash("This tournament is not accepting applications.")
         return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
-    # Check if the team already applied
-    if team in tournament.teams:
+
+    if TournamentTeam.query.filter_by(tournament_id=tournament.id, legacy_team_id=team.id).first():
         flash("This team has already applied to the tournament.")
         return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
     if tournament.max_teams is not None and len(tournament.teams) >= tournament.max_teams:
         flash("This tournament is full.")
         return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
 
-    # Add team to tournament participants
-    tournament.teams.append(team)
+    tournament_team = TournamentTeam(
+        tournament_id=tournament.id,
+        legacy_team_id=team.id,
+        team_name=team.team_name,
+        captain_id=current_user.id,
+    )
+    db.session.add(tournament_team)
+    db.session.flush()
+
+    for member in team.members:
+        db.session.add(TournamentTeamMember(tournament_team_id=tournament_team.id, user_id=member.id))
+
+    tournament.teams.append(tournament_team)
     db.session.commit()
 
     flash("Successfully applied to the tournament.")

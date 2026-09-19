@@ -7,5 +7,23 @@
 	{% if current_user.is_authenticated and current_user.role in ['moderator', 'admin'] %}
 	<a href="{{ url_for('routes.create_tournament') }}" class="btn btn-secondary">Create tournament</a>
 	{% endif %}
+
+	{% if teams_looking_for_members %}
+	<div class="mt-4">
+		<h2>Teams looking for members</h2>
+		<div class="list-group">
+			{% for team in teams_looking_for_members %}
+			<div class="list-group-item">
+				<div class="d-flex justify-content-between align-items-center">
+					<strong>{{ team.team_name }}</strong>
+					<span class="badge bg-primary">{{ team.tournament.tournament_name }}</span>
+				</div>
+				<div class="small text-muted mt-1">Captain: {{ team.captain.username }}</div>
+				<div class="small mt-1">Open spots: {{ 5 - team.members|length }}</div>
+			</div>
+			{% endfor %}
+		</div>
+	</div>
+	{% endif %}
 </div>
 {% endblock %}

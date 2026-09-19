@@ -177,16 +177,17 @@ def add_team(form):
     team = Teams(
         team_name=form.team_name.data,
         captain_id=form.captain_id.data,
-        join_token=str(uuid.uuid4())
+        join_token=str(uuid.uuid4()),
+        looking_for_members=form.looking_for_members.data
     )
-    
+
     db.session.add(team)
     db.session.commit()
 
     user = Users.query.get(form.captain_id.data)
     user.team_id = team.id
     db.session.commit()
-    
+
     return team
 
 def edit_team(form):

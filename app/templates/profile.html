@@ -99,7 +99,7 @@
                             <div>
                                 <img src="https://cdn.communitydragon.org/latest/profile-icon/{{ member.riot_user.icon_id }}" alt="Icon" width="24" height="24">
                                 {{ member.username }}
-                            </div>    
+                            </div>
                         </div>
 
                         {% endfor %}
@@ -115,6 +115,44 @@
                     <button type="button" class="btn btn-primary">Create Team</button>
                 </a>
             {% endif %}
+
+            <div class="mt-4">
+                <h3>Участие в турнирах</h3>
+                {% if tournament_participations %}
+                    {% for item in tournament_participations %}
+                        {% set tournament = item.tournament %}
+                        {% set team = item.team %}
+                        <div class="accordion-item mt-2">
+                            <h4 class="accordion-header">
+                                <button class="btn btn-link text-white text-start" type="button" data-bs-toggle="collapse" data-bs-target="#tournament-team-{{ team.id }}">
+                                    {{ tournament.tournament_name }}
+                                </button>
+                            </h4>
+                            <div id="tournament-team-{{ team.id }}" class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <div><strong>Команда:</strong> {{ team.team_name }}</div>
+                                    <div><strong>Капитан:</strong> {{ team.captain.username }}</div>
+                                    <div><strong>Ищут участников:</strong> {{ 'Да' if team.looking_for_members else 'Нет' }}</div>
+                                    <div class="mt-2">
+                                        <strong>Участники:</strong>
+                                        {% if team.members %}
+                                            <ul class="mb-0">
+                                                {% for membership in team.members %}
+                                                    <li>{{ membership.user.username }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span>Пока нет участников</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p>Вы пока не участвуете ни в одном турнире.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>

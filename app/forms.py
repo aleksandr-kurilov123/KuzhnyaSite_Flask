@@ -53,6 +53,7 @@ class EditUserForm(FlaskForm):
 class TeamForm(FlaskForm):
     team_name = StringField('Team Name', validators=[DataRequired()])
     captain_id = SelectField('Captain', coerce=int, validators=[DataRequired()])
+    looking_for_members = BooleanField('Looking for teammates')
     submit = SubmitField('Add Team', render_kw={"class": "sign"})
 
 class EditTeamForm(FlaskForm):
