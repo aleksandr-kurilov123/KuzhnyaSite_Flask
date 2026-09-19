@@ -69,6 +69,7 @@
             {% if current_user.is_authenticated and current_user.is_admin %}
               {% if not m.played %}
                 <form method="post" action="{{ url_for('routes.record_match_result', tournament_id=tournament.id, match_id=m.id) }}" class="d-flex gap-2">
+                  {{ form.hidden_tag() }}
                   <input type="number" name="score_a" placeholder="A" class="form-control" style="width:70px;" required>
                   <input type="number" name="score_b" placeholder="B" class="form-control" style="width:70px;" required>
                   <button type="submit" class="btn btn-sm btn-primary">Submit</button>

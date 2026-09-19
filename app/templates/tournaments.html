@@ -47,8 +47,7 @@
                     </form>
                     {% endif %}
 
-                    {# Start tournament button visible only to admins. Functionality to be implemented later. #}
-                    {% if current_user.is_authenticated and current_user.is_admin %}
+                    {% if current_user.is_authenticated and current_user.is_admin and tournament.status != 'active' %}
                     <form action="{{ url_for('routes.start_tournament_route', tournament_id=tournament.id) }}" method="post" style="display:inline; margin-left:8px;">
                         {{ form.hidden_tag() }}
                         <button type="submit" class="btn btn-danger">Start tournament</button>
