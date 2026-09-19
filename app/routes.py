@@ -4,7 +4,7 @@ from . import db
 from .forms import LoginForm, RegisterForm, ConnectForm, TournamentForm, GameForm, EditUserForm, TeamForm, EditTeamForm, JoinTeamForm, ApplyToTournamentForm
 from .models import Users, RiotAccountInfoUser, Tournaments, Games, Teams, Matches
 from .services import *
-from .utils import admin_required
+from .utils import admin_required, get_user_by_email_or_username
 import random
 from werkzeug.security import generate_password_hash
 from datetime import datetime
@@ -15,11 +15,10 @@ routes = Blueprint('routes', __name__)
 
 @routes.before_request
 def before_request():
-    with current_app.app_context():
-        if current_user.is_authenticated:
-            db.session.add(current_user)
-            db.session.refresh(current_user)
-            refresh_riot_account_info(current_user)
+    if current_user.is_authenticated:
+        db.session.add(current_user)
+        db.session.refresh(current_user)
+        refresh_riot_account_info(current_user)
 
 @routes.route("/")
 @routes.route("/home")

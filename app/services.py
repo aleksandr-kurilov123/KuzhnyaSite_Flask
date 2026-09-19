@@ -93,23 +93,78 @@ def add_tournament(form):
 
 
 def generate_swiss_pairings(tournament, round_number=1):
-    # Very simple pairing: sort by current wins, pair adjacent. For round 1 shuffle.
     import random
-    teams = list(tournament.teams)
-    if round_number == 1:
-        random.shuffle(teams)
-    else:
-        # sort by wins desc
-        standings = {s['team'].id: s['wins'] for s in tournament.standings()}
-        teams.sort(key=lambda t: (-standings.get(t.id, 0), t.id))
 
-    pairs = []
-    i = 0
-    while i < len(teams):
-        a = teams[i]
-        b = teams[i+1] if i+1 < len(teams) else None
-        pairs.append((a.id, b.id if b else None))
-        i += 2
+    team_ids = [team.id for team in tournament.teams]
+    if not team_ids:
+        return []
+
+    scores = {team_id: 0 for team_id in team_ids}
+    opponents = {team_id: set() for team_id in team_ids}
+    bye_recipients = set()
+
+    for match in tournament.matches:
+        if match.team_a_id not in scores:
+            continue
+
+        if match.team_b_id is None:
+            if match.played and match.winner_id == match.team_a_id:
+                scores[match.team_a_id] += 1
+                bye_recipients.add(match.team_a_id)
+            continue
+
+        if match.team_b_id not in scores:
+            continue
+        opponents[match.team_a_id].add(match.team_b_id)
+        opponents[match.team_b_id].add(match.team_a_id)
+        if match.played and match.winner_id in scores:
+            scores[match.winner_id] += 1
+
+    if round_number == 1:
+        random.shuffle(team_ids)
+        team_ids.sort(key=lambda team_id: scores[team_id], reverse=True)
+    else:
+        team_ids.sort(key=lambda team_id: (-scores[team_id], team_id))
+
+    bye_team_id = None
+    if len(team_ids) % 2:
+        eligible_byes = [team_id for team_id in team_ids if team_id not in bye_recipients]
+        bye_candidates = eligible_byes or team_ids
+        bye_team_id = min(bye_candidates, key=lambda team_id: (scores[team_id], team_id))
+        team_ids.remove(bye_team_id)
+
+    def pair_remaining(remaining, allow_rematches=False):
+        if not remaining:
+            return []
+
+        first_team_id = remaining[0]
+        candidates = remaining[1:]
+        candidates.sort(key=lambda team_id: (
+            team_id in opponents[first_team_id] if not allow_rematches else False,
+            scores[team_id] != scores[first_team_id],
+            abs(scores[team_id] - scores[first_team_id]),
+            team_id,
+        ))
+
+        for candidate_id in candidates:
+            if not allow_rematches and candidate_id in opponents[first_team_id]:
+                continue
+            next_remaining = [
+                team_id for team_id in remaining
+                if team_id not in (first_team_id, candidate_id)
+            ]
+            result = pair_remaining(next_remaining, allow_rematches)
+            if result is not None:
+                return [(first_team_id, candidate_id), *result]
+        return None
+
+    pairs = pair_remaining(team_ids)
+    if pairs is None:
+        pairs = pair_remaining(team_ids, allow_rematches=True)
+    if pairs is None:
+        raise ValueError("Unable to create Swiss pairings")
+    if bye_team_id is not None:
+        pairs.append((bye_team_id, None))
     return pairs
 
 
@@ -140,6 +195,9 @@ def start_tournament(tournament_id):
     # create matches
     for a_id, b_id in pairs:
         match = Matches(tournament_id=tournament.id, round_number=1, team_a_id=a_id, team_b_id=b_id)
+        if b_id is None:
+            match.played = True
+            match.winner_id = a_id
         db.session.add(match)
 
     db.session.commit()
@@ -180,6 +238,9 @@ def submit_match_result(match_id, score_a, score_b):
                 pairs = []
             for a_id, b_id in pairs:
                 new_match = Matches(tournament_id=tournament.id, round_number=tournament.current_round, team_a_id=a_id, team_b_id=b_id)
+                if b_id is None:
+                    new_match.played = True
+                    new_match.winner_id = a_id
                 db.session.add(new_match)
             db.session.commit()
         else:
