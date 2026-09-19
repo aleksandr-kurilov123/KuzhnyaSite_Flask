@@ -6,7 +6,7 @@
     <form method="POST" action="{{ url_for('routes.create_team') }}">
         {{ form.hidden_tag() }}
         {{ form.team_name.label }} {{ form.team_name }}
-        {{ form.captain_id.label }} {{ form.captain_id }}
+        {{ form.tournament_id.label }} {{ form.tournament_id }}
         <div class="mt-2">
             {{ form.looking_for_members() }} {{ form.looking_for_members.label }}
         </div>

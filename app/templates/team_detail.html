@@ -3,11 +3,12 @@
 {% block content %}
 <div class="team-detail">
     <h1>{{ team.team_name }}</h1>
+    <h2>Tournament: {{ team.tournament.tournament_name }}</h2>
     <h2>Captain: {{ team.captain.username }}</h2>
     <h3>Members</h3>
     <ul>
-        {% for member in team.members %}
-        <li>{{ member.username }} ({{ member.email }})</li>
+        {% for membership in team.members %}
+        <li>{{ membership.user.username }} ({{ membership.user.email }})</li>
         {% endfor %}
     </ul>
 </div>

@@ -52,19 +52,9 @@ class EditUserForm(FlaskForm):
 
 class TeamForm(FlaskForm):
     team_name = StringField('Team Name', validators=[DataRequired()])
-    captain_id = SelectField('Captain', coerce=int, validators=[DataRequired()])
+    tournament_id = SelectField('Tournament', coerce=int, validators=[DataRequired()])
     looking_for_members = BooleanField('Looking for teammates')
     submit = SubmitField('Add Team', render_kw={"class": "sign"})
-
-class EditTeamForm(FlaskForm):
-    team_name = SelectField('Team Name', coerce=int, validators=[DataRequired()])   
-    new_team_name = StringField('New Team Name', validators=[Optional()])
-    captain_id = SelectField('Captain', coerce=int, validators=[DataRequired()])
-    submit = SubmitField('Update Team', render_kw={"class": "sign"})
-
-class JoinTeamForm(FlaskForm):
-    team_id = SelectField('Team', coerce=int, validators=[DataRequired()])
-    submit = SubmitField('Join Team')
 
 class ApplyToTournamentForm(FlaskForm):
     submit = SubmitField('Apply to Tournament')

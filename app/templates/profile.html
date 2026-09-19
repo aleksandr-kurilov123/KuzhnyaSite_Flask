@@ -105,15 +105,6 @@
                             </div>
                         </div>
                         {% endfor %}
-                    {% elif current_team.members is not defined and current_team.team %}
-                        {% for member in current_team.team.members %}
-                        <div class="team-member">
-                            <div>
-                                <img src="https://cdn.communitydragon.org/latest/profile-icon/{{ member.riot_user.icon_id }}" alt="Icon" width="24" height="24">
-                                {{ member.username }}
-                            </div>
-                        </div>
-                        {% endfor %}
                     {% endif %}
                     {% if current_team.captain_id == user.id and current_team.id %}
                     <div class="input-group" >

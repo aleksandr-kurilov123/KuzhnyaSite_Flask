@@ -73,26 +73,6 @@
         </form>
         {% endif %}
     </div>
-    <div class="admin-section">
-        <h2>Update Teams</h2>
-        {% if current_user.is_admin or current_user.role == 'admin' %}
-        <form class="w-100" method="POST" action="{{ url_for('routes.admin') }}">
-            {{ team_form.hidden_tag() }}
-            <div class="input-group1">
-                {{ team_form.team_name.label }} {{ team_form.team_name }}
-            </div>
-            <div class="input-group1">
-                {{ team_form.new_team_name.label }} {{ team_form.new_team_name }}
-            </div>
-            <div class="input-group1">
-                {{ team_form.captain_id.label }} {{ team_form.captain_id }}
-            </div>
-            <div class="mt-3">
-                {{ team_form.submit }}
-            </div>
-        </form>
-        {% endif %}
-    </div>
     <div  class="admin-section">
         <h2>Users</h2>
         {% if current_user.is_admin or current_user.role == 'admin' %}

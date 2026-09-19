@@ -29,14 +29,12 @@ class TournamentTeam(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id', name='fk_tournament_team_tournament_id'), nullable=False)
-    legacy_team_id = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_tournament_team_legacy_team_id'), nullable=True)
     team_name = db.Column(db.String(30), nullable=False)
     captain_id = db.Column(db.Integer, db.ForeignKey('users.id', name='fk_tournament_team_captain_id'), nullable=False)
     join_token = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
     looking_for_members = db.Column(db.Boolean, nullable=False, default=False)
 
     tournament = db.relationship('Tournaments', back_populates='teams')
-    legacy_team = db.relationship('Teams', foreign_keys=[legacy_team_id], backref='legacy_tournament_teams')
     captain = db.relationship('Users', foreign_keys=[captain_id], backref=db.backref('captained_tournament_teams', lazy='dynamic'))
     members = db.relationship('TournamentTeamMember', back_populates='tournament_team', cascade='all, delete-orphan')
     matches_as_a = db.relationship('Matches', foreign_keys='Matches.team_a_id', back_populates='team_a')
@@ -57,8 +55,6 @@ class Users(UserMixin, db.Model):
     role = db.Column(db.String(20), nullable=False, default='player')
     riot_user = db.relationship("RiotAccountInfoUser", backref="user", uselist=False, cascade="all, delete-orphan")
     games = db.relationship('Games', secondary=user_games, backref=db.backref('participants', lazy='dynamic'))
-    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_users_team_id'))
-    team = db.relationship('Teams', foreign_keys=[team_id], backref=db.backref('members', lazy=True))
     tournament_team_memberships = db.relationship('TournamentTeamMember', back_populates='user', cascade='all, delete-orphan')
 
     def __init__(self, username: str, email: str, password: str, is_admin: bool = False, role: str = 'player'):
@@ -155,15 +151,6 @@ class Games(db.Model):
 
     def formatted_game_time(self):
         return self.game_time.strftime('%H:%M %d-%m-%Y')
-
-
-class Teams(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    team_name = db.Column(db.String(30), unique=True, nullable=False)
-    captain_id = db.Column(db.Integer, db.ForeignKey('users.id', name='fk_teams_captain_id'))
-    captain = db.relationship('Users', foreign_keys=[captain_id], backref=db.backref('captain_of', uselist=False))
-    join_token = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
-    looking_for_members = db.Column(db.Boolean, nullable=False, default=False)
 
 
 class Matches(db.Model):

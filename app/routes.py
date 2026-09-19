@@ -1,8 +1,8 @@
 from flask import render_template, redirect, url_for, request, flash, session, jsonify, Blueprint, current_app, send_from_directory
 from flask_login import login_user, login_required, logout_user, current_user
 from . import db
-from .forms import LoginForm, RegisterForm, ConnectForm, TournamentForm, GameForm, EditUserForm, TeamForm, EditTeamForm, JoinTeamForm, ApplyToTournamentForm
-from .models import Users, RiotAccountInfoUser, Tournaments, Games, Teams, Matches, TournamentTeam, TournamentTeamMember
+from .forms import LoginForm, RegisterForm, ConnectForm, TournamentForm, GameForm, EditUserForm, TeamForm, ApplyToTournamentForm
+from .models import Users, RiotAccountInfoUser, Tournaments, Games, Matches, TournamentTeam, TournamentTeamMember
 from .services import *
 from .utils import admin_required, can_manage_tournament, get_user_by_email_or_username, is_admin_user, staff_required
 import random
@@ -78,9 +78,7 @@ def profile():
         seen.add(key)
         unique_participations.append(item)
 
-    current_team = user.team
-    if not current_team and unique_participations:
-        current_team = unique_participations[0]['team']
+    current_team = unique_participations[0]['team'] if unique_participations else None
 
     refresh_riot_account_info(user)
     return render_template("profile.html", user=user, game_list=game_list, tournament_participations=unique_participations, current_team=current_team)
@@ -137,15 +135,6 @@ def get_tournament_by_id(id):
 @routes.route("/apply_to_tournament/<int:tournament_id>", methods=["POST"])
 @login_required
 def apply_to_tournament(tournament_id):
-    if not current_user.team_id:
-        flash("You need to join a team first.")
-        return redirect(url_for("routes.profile"))
-    
-    team = Teams.query.get(current_user.team_id)
-    if team.captain_id != current_user.id:
-        flash("Only team captains can apply to tournaments.")
-        return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
-
     tournament = Tournaments.query.get(tournament_id)
     if not tournament:
         flash("Tournament not found.")
@@ -154,30 +143,10 @@ def apply_to_tournament(tournament_id):
         flash("This tournament is not accepting applications.")
         return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
 
-    if TournamentTeam.query.filter_by(tournament_id=tournament.id, legacy_team_id=team.id).first():
-        flash("This team has already applied to the tournament.")
-        return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
     if tournament.max_teams is not None and len(tournament.teams) >= tournament.max_teams:
         flash("This tournament is full.")
         return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
-
-    tournament_team = TournamentTeam(
-        tournament_id=tournament.id,
-        legacy_team_id=team.id,
-        team_name=team.team_name,
-        captain_id=current_user.id,
-    )
-    db.session.add(tournament_team)
-    db.session.flush()
-
-    for member in team.members:
-        db.session.add(TournamentTeamMember(tournament_team_id=tournament_team.id, user_id=member.id))
-
-    tournament.teams.append(tournament_team)
-    db.session.commit()
-
-    flash("Successfully applied to the tournament.")
-    return redirect(url_for("routes.get_tournament_by_id", id=tournament_id))
+    return redirect(url_for("routes.create_team", tournament_id=tournament.id))
 
 
 @routes.route("/tournaments/<int:tournament_id>/start", methods=["POST"])
@@ -285,18 +254,14 @@ def admin():
     tournament_form = TournamentForm()
     game_form = GameForm()
     edit_user_form = EditUserForm()
-    edit_team_form = EditTeamForm()
 
     all_tournaments = Tournaments.query.all()
     visible_tournaments = all_tournaments if is_admin_user(current_user) else [
         tournament for tournament in all_tournaments if tournament.created_by_id == current_user.id
     ]
     users = Users.query.all() if is_admin_user(current_user) else []
-    teams = Teams.query.all() if is_admin_user(current_user) else []
     game_form.tournament_id.choices = [(t.id, t.tournament_name) for t in visible_tournaments]
     edit_user_form.user_id.choices = [(u.id, u.username) for u in users]
-    edit_team_form.team_name.choices = [(t.id, t.team_name) for t in teams]
-    edit_team_form.captain_id.choices = [(u.id, u.username) for u in users]
 
     if tournament_form.validate_on_submit():
         add_tournament(tournament_form)
@@ -320,12 +285,7 @@ def admin():
             flash("User not found.")
         return redirect(url_for("routes.admin"))
 
-    if edit_team_form.validate_on_submit() and is_admin_user(current_user):
-        edit_team(edit_team_form)
-        flash("Team updated successfully.")
-        return redirect(url_for("routes.admin"))
-
-    return render_template("admin.html", tournament_form=tournament_form, game_form=game_form, edit_user_form=edit_user_form, team_form=edit_team_form, users=users, tournaments=visible_tournaments, teams=teams)
+    return render_template("admin.html", tournament_form=tournament_form, game_form=game_form, edit_user_form=edit_user_form, users=users, tournaments=visible_tournaments)
 
 @routes.route("/api/tournament/<int:id>")
 def get_tournament_info(id):
@@ -358,12 +318,12 @@ def tfttools():
 
 @routes.route("/teams")
 def teams_overview():
-    teams = Teams.query.all()
+    teams = TournamentTeam.query.order_by(TournamentTeam.tournament_id, TournamentTeam.team_name).all()
     return render_template("teams_overview.html", teams=teams)
 
 @routes.route("/teams/<int:id>")
 def team_detail(id):
-    team = Teams.query.get(id)
+    team = TournamentTeam.query.get(id)
     if not team:
         flash("Team not found.")
         return redirect(url_for("routes.teams_overview"))
@@ -375,12 +335,14 @@ def create_team():
     if not current_user.riot_user:
         flash("You need to connect your Riot account first.")
         return redirect(url_for("routes.connect"))
-    if current_user.team_id:
-        flash("You are already in a team.")
-        return redirect(url_for("routes.profile"))
-    
     form = TeamForm()
-    form.captain_id.choices = [(current_user.id, current_user.username)]
+    form.tournament_id.choices = [
+        (tournament.id, tournament.tournament_name)
+        for tournament in Tournaments.query.filter_by(status='draft').order_by(Tournaments.id.desc()).all()
+    ]
+    requested_tournament_id = request.args.get('tournament_id', type=int)
+    if requested_tournament_id and requested_tournament_id in {choice[0] for choice in form.tournament_id.choices}:
+        form.tournament_id.data = requested_tournament_id
     if form.validate_on_submit():
         team = add_team(form)
         if team:
